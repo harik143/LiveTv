@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live TV Channels</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: black;
+            color: white;
+        }
+        #channels {
+            width: 100%;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+            
+            max-height: calc(100vh - 200px);
+            margin-bottom: 0;
+            
+        }
+        
+        .channel {
+            width: calc(50% - 20px);
+            margin: 10px;
+            box-sizing: border-box;
+            padding: 10px;
+            border: 2px solid green;
+        }
+        .channel img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            cursor: pointer;
+        }
+        select {
+            margin: 20px;
+            padding: 5px;
+            font-size: 16px;
+        }
+        #videoPlayerContainer {
+            height: 50%;
+            display: none;
+            position: relative;
+        }
+        #videoPlayer {
+            width: 100vh;
+            border: 2px solid green;
+            width: 100%;
+            height: 230px; /* Perfect Video Size */
+        }
+        
+        
+        .button-container {
+            display: none;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        .button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 0 5px;
+        }
+        #fullScreenButton {
+            position: absolute;
+            top: 190px;
+            right: 0;
+            margin: 16px;
+            padding: 10px;
+            font-size: 16px;
+            color: white;
+            border: none;
+            border-radius: 5px; 
+            width: 25px; /* Set equal width and height */
+            height: 25px; /* Set equal width and height */
+            cursor: pointer;
+            background-image: url('https://cdn-icons-png.flaticon.com/512/6398/6398940.png');
+            background-size: contain;
+            background-color: transparent;
+        }
+        #currentChannelName {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 10px;
+            color: #fff;
+            text-align: left;
+            padding-left: 10px; 
+        }
+        #categorySelect, #searchInput {
+            margin-top: 10px;
+            padding: 5px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            display: inline-block;
+        }
+        #categorySelect {
+            margin-right: 10px;
+            width: 100px;
+        }
+      
+        
+        #reloadButton {
+            position: absolute;
+            top: 240px; /* Adjust as needed */
+            right: 10px; /* Adjust as needed */
+            background-color: transparent; /* Set background color to transparent */
+            border: none;
+            border-radius: 5px;
+            padding: 0; /* Remove padding */
+            width: 40px; /* Set equal width and height */
+            height: 40px; /* Set equal width and height */
+            cursor: pointer;
+            background-image: url('https://cdn-icons-png.flaticon.com/512/1177/1177530.png');
+            background-size: cover;
+        }
+        
+        #loading {
+            display: none;
+            position: fixed;
+            top: 56%;
+            left: 52%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 20px;
+        }
+        
+        
+        #loadingSpinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #ffffff;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            margin-top: -15px;
+            margin-left: -15px;
+            z-index: 9999;
+            display: none; /* Initially hide the spinner */
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Add media query for laptop screens */
+        @media screen and (min-width: 768px) {
+            .channel {
+                width: calc(20% - 20px); /* Adjusted width for laptop screens */
+            }
+            
+            #reloadButton {
+            
+                top: 540px;  /* Set equal width and height */
+            }
+            
+            #fullScreenButton {
+            
+                top: 490px;
+            }
+            
+            #videoPlayer {
+                height: 530px; /* Adjusted height for laptop screens */
+            }
+        }
+        
+        .channel img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            cursor: pointer;
+    /* Make thumbnails square */
+            width: 100%; /* Set width to 100% */
+            height: auto; /* Set height to auto */
+            aspect-ratio: 1 / 1; /* Maintain aspect ratio for square shape */
+        }
+
+
+        
+        
+        
+    </style>
+</head>
+<body>
+    <script>
+        if (location.protocol === 'https:') {
+            location.replace('http://' + location.host + location.pathname);
+        }
+    </script>
+
+    <div id="container">
+        <div id="videoPlayerContainer">
+            <iframe src="" id="videoPlayer"></iframe>
+            <button id="fullScreenButton" onclick="openFullScreen()"></button>
+            <button id="reloadButton" onclick="reloadVideo()"></button>
+        </div>
+        <!-- Add this element below the video player and above the player buttons -->
+        <div id="currentChannelName"></div>
+        <div id="loading">Loading...</div>
+        <div id="loadingSpinner"></div>
+
+        <div class="button-container">
+            <button class="button" onclick="loadPlayer('vlc')">VLC</button>
+            <button class="button" onclick="loadPlayer('player3')">Player 3</button> <!-- Player 3 button -->
+        </div>
+        
+        <script>
+            let timeout;
+
+            function hideButtons() {
+                const buttons = document.querySelectorAll('.button, #fullScreenButton, #reloadButton');
+                buttons.forEach(button => {
+                    button.style.display = 'none';
+                });
+            }
+
+            function showButtons() {
+                const buttons = document.querySelectorAll('.button, #fullScreenButton,#reloadButton');
+                buttons.forEach(button => {
+                    button.style.display = 'block';
+                });
+            }
+
+            function resetTimeout() {
+                clearTimeout(timeout);
+                timeout = setTimeout(hideButtons, 3000);
+                showButtons(); // Show buttons on any activity
+            }
+
+            document.addEventListener('mousemove', resetTimeout);
+            document.addEventListener('keypress', resetTimeout);
+            
+            // Add event listener to the body to show buttons when touched
+            document.body.addEventListener('touchstart', function() {
+                resetTimeout();
+                showButtons();
+                
+            });
+        </script>
+
+        <select id="categorySelect" onchange="filterChannels(this.value)">
+            <option value="all">All Categories</option>
+        </select>
+        <input type="text" id="searchInput" onkeyup="searchChannels()" placeholder="Search channels...">
+        <div id="channels"></div>
+    </div>
+
+    <!-- Player 3 container -->
+    <div id="player3Container" style="display:none;"></div>
+
+    <script> 
+       /* const m3uUrls = [
+            'https://iptv-org.github.io/iptv/languages/tel.m3u','https://raw.githubusercontent.com/harik143/AchiTv/main/Ditto%20tv.m3u','https://raw.githubusercontent.com/harik143/AchiTv/main/Banjo%20Tv.m3u','https://raw.githubusercontent.com/harik143/AchiTv/main/UIOP%20IPTV.m3u','https://raw.githubusercontent.com/harik143/AchiTv/main/Tata_Tv.m3u','https://raw.githubusercontent.com/harik143/AchiTv/main/Multi%20Source%20Tv/B1G%20New.m3u','https://raw.githubusercontent.com/harik143/AchiTv/main/Multi%20Source%20Tv/SanSat.m3u','https://raw.githubusercontent.com/harik143/AchiTv/main/Multi%20Source%20Tv/Live%20TV%20Box.m3u','https://raw.githubusercontent.com/harik143/AchiTv/main/Multi%20Source%20Tv/Watch%20India%20Telugu.m3u','https://raw.githubusercontent.com/harik143/AchiTv/main/Multi%20Source%20Tv/Jio%20Tv%20Be%20New.m3u',
+            // Add more URLs here...
+        ]; */
+        
+        const m3uTxtUrl = 'https://raw.githubusercontent.com/harik143/AchiTv/main/Multi%20Source%20Tv/Tv_Source.txt';
+        const channelsDiv = document.getElementById('channels');
+        const videoPlayerContainer = document.getElementById('videoPlayerContainer');
+        const buttonContainer = document.querySelector('.button-container');
+        const categories = {};
+        let currentVideoUrl = ''; // Variable to store the current video URL
+        let currentPlayer = 'player3'; // Variable to store the current player selectionlet  .                 
+        
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+        
+        
+        function showLoadingSpinner() {
+            document.getElementById('loadingSpinner').style.display = 'block';
+        }
+
+        function hideLoadingSpinner() {
+            document.getElementById('loadingSpinner').style.display = 'none';
+        }
+        
+        
+        function displayChannel(channel) {
+            const channelDiv = document.createElement('div');
+            channelDiv.classList.add('channel');
+            channelDiv.setAttribute('data-category', channel.category); // Add category attribute
+
+            const thumbnail = document.createElement('img');
+            thumbnail.src = channel.logo || 'default_thumbnail.png';
+            thumbnail.alt = channel.name;
+
+            // Update the thumbnail click event listener to pass the channel name to the loadVideo function
+            thumbnail.addEventListener('click', () => {
+                currentVideoUrl = channel.url; // Store the clicked thumbnail URL
+                if (currentPlayer === 'vlc') {
+                    playVideo();
+                } else {
+                    loadVideo(currentVideoUrl, channel.name); // Load the video and update the channel name
+                }
+                videoPlayerContainer.style.display = 'block';
+                buttonContainer.style.display = 'flex';
+                document.getElementById("currentChannelName").textContent = channel.name;
+            });
+
+            const channelLink = document.createElement('a');
+            channelLink.href = '#';
+            channelLink.textContent = channel.name;
+
+            channelDiv.appendChild(thumbnail);
+            channelDiv.appendChild(document.createElement('br'));
+            channelDiv.appendChild(channelLink);
+
+            channelsDiv.appendChild(channelDiv);
+        }
+
+        // Update the loadVideo function to also update the current channel name
+        function loadVideo(videoUrl, channelName) {
+            document.getElementById("videoPlayer").src = getPlayerUrl(currentPlayer) + videoUrl;
+            document.getElementById("currentChannelName").textContent = channelName;
+        }
+
+        function loadPlayer(player) {
+            currentPlayer = player;
+            if (player === 'vlc') {
+                playVideo();
+            }
+        }
+
+        function getPlayerUrl(player) {
+            switch (player) {
+                case 'vlc':
+                    return "vlc://";
+                case 'player3':
+                    return "";
+                default:
+                    return "";
+            }
+        }
+
+        function playVideo() {
+            var url = currentVideoUrl.trim();
+            if (url) {
+                if (url.endsWith(".ts") || url.endsWith(".m3u8")) {
+                    var vlcUrl = "vlc://" + url;
+                } else if (url.includes("http://b1g.ooo")) {
+                    var vlcUrl = "vlc://" + url + ".ts";   
+                } else {
+                    // Assuming .ts is default, you can change this logic as needed
+                    var vlcUrl = "vlc://" + url + "";
+                }
+                window.location.href = vlcUrl;
+            } else {
+                alert("Please enter a valid video URL.");
+            }
+        }
+
+        function reloadVideo() {
+            const videoPlayer = document.getElementById("videoPlayer");
+            videoPlayer.src = currentVideoUrl;
+        }
+
+        function openFullScreen() {
+            const videoPlayer = document.getElementById("videoPlayer");
+            const fullScreenElement = videoPlayer.requestFullscreen || videoPlayer.mozRequestFullScreen || videoPlayer.webkitRequestFullscreen || videoPlayer.msRequestFullscreen;
+
+            if (fullScreenElement) {
+                fullScreenElement.call(videoPlayer);
+                if (videoPlayer.webkitRequestFullscreen) {
+                    videoPlayer.style.transform = 'rotate(90deg)';
+                }
+            }
+        }
+
+        document.addEventListener('fullscreenchange', exitFullScreenHandler);
+        document.addEventListener('webkitfullscreenchange', exitFullScreenHandler);
+        document.addEventListener('mozfullscreenchange', exitFullScreenHandler);
+        document.addEventListener('MSFullscreenChange', exitFullScreenHandler);
+
+        function exitFullScreenHandler() {
+            const videoPlayer = document.getElementById("videoPlayer");
+            if (!document.fullscreenElement && !document.webkitIsFullScreen && !document.mozFullScreen && !document.msFullscreenElement) {
+                videoPlayer.style.transform = 'none';
+            }
+        }
+
+        function filterChannels(selectedCategory) {
+            const channels = document.querySelectorAll('.channel');
+            channels.forEach(channel => {
+                const category = channel.getAttribute('data-category');
+                if (selectedCategory === 'all' || category === selectedCategory) {
+                    channel.style.display = 'block';
+                } else {
+                    channel.style.display = 'none';
+                }
+            });
+        }
+
+        function searchChannels() {
+            const searchInput = document.getElementById("searchInput");
+            const filter = searchInput.value.toUpperCase();
+            const channels = document.querySelectorAll('.channel');
+            channels.forEach(channel => {
+                const channelName = channel.textContent || channel.innerText;
+                if (channelName.toUpperCase().indexOf(filter) > -1) {
+                    channel.style.display = "block";
+                } else {
+                    channel.style.display = "none";
+                }
+            });
+        }
+
+        function fetchChannelsFromUrls(urls) {
+            Promise.all(urls.map(url =>
+                fetch(url)
+                .then(response => response.text())
+                .then(data => {
+                    const lines = data.split('\n');
+
+                    lines.forEach((line, index) => {
+                        if (line.startsWith('#EXTINF')) {
+                            const [, category] = line.match(/group-title="([^"]+)"/) || [];
+                            const [, logo] = line.match(/tvg-logo="([^"]+)"/) || [];
+                            const [, name] = line.match(/,(.+)/) || [];
+                            const url = lines[index + 1];
+
+                            if (category && name && url) {
+                                if (!categories[category]) {
+                                    categories[category] = [];
+                                }
+
+                                categories[category].push({
+                                    name: name.trim(),
+                                    logo,
+                                    url,
+                                    category
+                                });
+                            }
+                        }
+                    });
+                })
+            )).then(() => {
+                Object.values(categories).forEach(categoryChannels => {
+                    categoryChannels.forEach(channel => {
+                        displayChannel(channel);
+                    });
+                });
+
+                Object.keys(categories).forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category;
+                    option.textContent = category;
+                    document.getElementById('categorySelect').appendChild(option);
+                });
+            }).catch(error => {
+                console.error('Error fetching M3U data:', error);
+            });
+        }
+
+
+       // const m3uTxtUrl = 'https://raw.githubusercontent.com/harik143/AchiTv/main/Multi%20Source%20Tv/Tv_Source.txt';
+
+        fetch(m3uTxtUrl)
+            .then(response => response.text())
+            .then(data => {
+        // Extract URLs from the text
+                const urls = data.match(/'(.*?)'/g).map(url => url.replace(/'/g, ''));
+
+        // Fetch channels from each M3U URL
+                fetchChannelsFromUrls(urls);
+            })
+            .catch(error => {
+                console.error('Error fetching M3U text file:', error);
+            });
+
+        function fetchChannelsFromUrls(urls) {
+            showLoading(); // Show loading indicator
+            showLoadingSpinner();
+            Promise.all(urls.map(url =>
+                fetch(url)
+                .then(response => response.text())
+                .then(data => {
+                    const lines = data.split('\n');
+
+                    lines.forEach((line, index) => {
+                        if (line.startsWith('#EXTINF')) {
+                            const [, category] = line.match(/group-title="([^"]+)"/) || [];
+                            const [, logo] = line.match(/tvg-logo="([^"]+)"/) || [];
+                            const [, name] = line.match(/,(.+)/) || [];
+                            const url = lines[index + 1];
+
+                            if (category && name && url) {
+                                if (!categories[category]) {
+                                    categories[category] = [];
+                                }
+
+                                categories[category].push({
+                                    name: name.trim(),
+                                    logo,
+                                    url,
+                                    category
+                                });
+                            }
+                        }
+                    });
+                })
+            )).then(() => {
+                // Hide loading indicator once channels are loaded
+                hideLoading();
+                hideLoadingSpinner();
+                Object.values(categories).forEach(categoryChannels => {
+                    categoryChannels.forEach(channel => {
+                        displayChannel(channel);
+                    });
+                });
+
+                Object.keys(categories).forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category;
+                    option.textContent = category;
+                    document.getElementById('categorySelect').appendChild(option);
+                });
+            }).catch(error => {
+                console.error('Error fetching M3U data:', error);
+            });
+            
+            
+        }
+
+
+
+        fetchChannelsFromUrls(m3uUrls);
+        setInterval(reloadVideoForPlayer3, 60000); // Reload video for player 3 every 60 seconds
+    </script>
+</body>
+</html>
