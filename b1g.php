@@ -3,7 +3,7 @@
 $id = $_GET['id'];
 
 // Construct the new URL
-$new_url = "https://b1g.ooo:80/live/98765432/98765432/$id";
+$new_url = "https://livetvbox.live:8080/live/Michelle123/Michelle123/$id";
 
 // Redirect to the new URL
 header("Location: $new_url");
